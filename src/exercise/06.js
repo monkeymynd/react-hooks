@@ -6,7 +6,43 @@ import React from 'react'
 // fetchPokemon: the function we call to get the pokemon info
 // PokemonInfoFallback: the thing we show while we're loading the pokemon info
 // PokemonDataView: the stuff we use to display the pokemon info
-import {PokemonForm} from '../pokemon'
+import {
+  PokemonForm,
+  fetchPokemon,
+  PokemonInfoFallback,
+  PokemonDataView,
+} from '../pokemon'
+
+import {ErrorBoundary} from 'react-error-boundary'
+
+// class ErrorBoundary extends React.Component {
+//   state = {error: null}
+
+//   static getDerivedStateFromError(error) {
+//     // Update state so the next render will show the fallback UI.
+//     return {error}
+//   }
+
+//   render() {
+//     const {error} = this.state
+//     if (error) {
+//       // You can render any custom fallback UI
+//       return <this.props.fallbackComponent error={error} />
+//     }
+
+//     return this.props.children
+//   }
+// }
+
+function ErrorFallback({error, resetErrorBoundary}) {
+  return (
+    <div role="alert">
+      There was an error:{' '}
+      <pre style={{whiteSpace: 'normal'}}>{error.message}</pre>
+      <button onClick={resetErrorBoundary}>Try again</button>
+    </div>
+  )
+}
 
 function PokemonInfo({pokemonName}) {
   // 🐨 Have state for the pokemon (null)
@@ -23,9 +59,68 @@ function PokemonInfo({pokemonName}) {
   //   1. no pokemon name: 'Submit a pokemon'
   //   2. pokemon name but no pokemon: <PokemonInfoFallback name={pokemonName} />
   //   3. pokemon: <PokemonDataView pokemon={pokemon} />
+  // const [pokemon, setPokemon] = React.useState(null)
+  // const [status, setStatus] = React.useState('idle')
+  const [state, setState] = React.useState({
+    status: 'idle',
+    pokemon: null,
+    error: null,
+  })
 
-  // 💣 remove this
-  return 'TODO'
+  const {status, pokemon, error} = state
+
+  // React.useEffect(() => {
+  //   if (!pokemonName) {
+  //     return
+  //   }
+  //   setPokemon(null)
+  //   setError(null)
+  //   fetchPokemon(pokemonName).then(
+  //     pokemon => setPokemon(pokemon),
+  //     error => setError(error)
+  //   )
+  // }, [pokemonName])
+
+  React.useEffect(() => {
+    if (!pokemonName) {
+      setState({status: 'idle'})
+      return
+    }
+    setState({status: 'pending'})
+    fetchPokemon(pokemonName).then(
+      pokemon => {
+        setState({status: 'resolved', pokemon})
+      },
+      error => {
+        setState({status: 'rejected', error})
+      }
+    )
+  }, [pokemonName])
+
+  // if (error) {
+  //   return (
+  //     <div role="alert">
+  //       There was an error:{' '}
+  //       <pre style={{whiteSpace: 'normal'}}>{error.message}</pre>
+  //     </div>
+  //   )
+  // } else if (!pokemonName) {
+  //   return 'Submit a pokemon'
+  // } else if (!pokemon) {
+  //   return <PokemonInfoFallback name={pokemonName} />
+  // } else {
+  //   return <PokemonDataView pokemon={pokemon} />
+  // }
+
+  if (status === 'idle') {
+    return 'Submit a pokemon'
+  } else if (status === 'pending') {
+    return <PokemonInfoFallback name={pokemonName} />
+  } else if (status === 'rejected') {
+    throw error
+  } else {
+    return <PokemonDataView pokemon={pokemon} />
+  }
 }
 
 function App() {
@@ -40,7 +135,15 @@ function App() {
       <PokemonForm pokemonName={pokemonName} onSubmit={handleSubmit} />
       <hr />
       <div className="pokemon-info">
-        <PokemonInfo pokemonName={pokemonName} />
+        <ErrorBoundary
+          FallbackComponent={ErrorFallback}
+          onReset={() => {
+            setPokemonName('')
+          }}
+          resetKeys={[pokemonName]}
+        >
+          <PokemonInfo pokemonName={pokemonName} />
+        </ErrorBoundary>
       </div>
     </div>
   )
